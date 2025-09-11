@@ -277,6 +277,8 @@ class UserAppManager {
             this.sidebarWidth = parseInt(savedWidth);
             this.sidebar.style.width = this.sidebarWidth + 'px';
         }
+        // Ensure layout is correct after loading sidebar width
+        this.updateMainContentMargin();
     }
 
     loadApp() {
@@ -820,8 +822,10 @@ class UserAppManager {
             
             console.log(`[UserAppManager] LOADING APPS. Found data:`, appsData);
 
-            // Load sidebar width
+            // Load sidebar width and update layout
             this.loadSidebarWidth();
+            // Ensure sidebar open/closed state is reflected in layout
+            this.updateMainContentMargin();
             
             if (appsData) {
                 const parsedApps = JSON.parse(appsData);
