@@ -159,96 +159,33 @@ class UserAppManager {
     }
 
     bindResizeEvents() {
-        let startX, startWidth, isInResizeZone = false;
-        
-        // Track mouse position over sidebar to show resize cursor
-        this.sidebar.addEventListener('mousemove', (e) => {
-            if (!this.isResizing) {
-                if (e.offsetX <= 4) {
-                    this.sidebar.style.cursor = 'ew-resize';
-                    isInResizeZone = true;
-                } else {
-                    this.sidebar.style.cursor = 'default';
-                    isInResizeZone = false;
-                }
-            }
+        const handle = document.getElementById('resize-handle');
+        if (!handle) return;
+
+        handle.addEventListener('mousedown', (e) => {
+            this.isResizing = true;
+            this._resizeStartX = e.clientX;
+            this._resizeOriginWidth = this.sidebar.offsetWidth;
+            e.preventDefault();
+            e.stopPropagation();
         });
-        
-        // Reset cursor when mouse leaves sidebar
-        this.sidebar.addEventListener('mouseleave', () => {
-            if (!this.isResizing) {
-                this.sidebar.style.cursor = 'default';
-                isInResizeZone = false;
-            }
-        });
-        
-        const handleMouseDown = (e) => {
-            // Check if click is on the left edge (resize area) or if we're in resize zone
-            if (isInResizeZone || e.offsetX <= 4) {
-                this.isResizing = true;
-                this.sidebar.classList.add('resizing');
-                startX = e.clientX;
-                startWidth = parseInt(document.defaultView.getComputedStyle(this.sidebar).width, 10);
-                
-                // Attach events to document to prevent detachment issues
-                document.addEventListener('mousemove', handleMouseMove, true);
-                document.addEventListener('mouseup', handleMouseUp, true);
-                
-                // Prevent text selection and set cursor
-                document.body.style.cursor = 'ew-resize';
-                document.body.style.userSelect = 'none';
-                document.documentElement.style.cursor = 'ew-resize';
-                
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        };
-        
-        const handleMouseMove = (e) => {
+
+        document.addEventListener('mousemove', (e) => {
             if (!this.isResizing) return;
-            
-            // Calculate the width change based on mouse movement
-            // Since sidebar is on the right, moving left (negative) should increase width
-            const deltaX = startX - e.clientX; // Reversed: left movement = positive delta
-            const newWidth = startWidth + deltaX;
-            
+            // Sidebar is on the right, so dragging left (negative clientX) increases width
+            const delta = this._resizeStartX - e.clientX;
             const minWidth = 250;
-            const maxWidth = window.innerWidth * 0.9; // 90% of viewport
-            
-            // Apply constraints
-            this.sidebarWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
-            
-            // Apply the new width immediately
+            const maxWidth = window.innerWidth * 0.9;
+            this.sidebarWidth = Math.max(minWidth, Math.min(maxWidth, this._resizeOriginWidth + delta));
             this.sidebar.style.width = this.sidebarWidth + 'px';
             this.updateMainContentMargin();
-            
-            e.preventDefault();
-            e.stopPropagation();
-        };
-        
-        const handleMouseUp = (e) => {
+        });
+
+        document.addEventListener('mouseup', () => {
             if (!this.isResizing) return;
-            
             this.isResizing = false;
-            this.sidebar.classList.remove('resizing');
-            
-            // Remove document-level event listeners
-            document.removeEventListener('mousemove', handleMouseMove, true);
-            document.removeEventListener('mouseup', handleMouseUp, true);
-            
-            // Reset cursors and selection
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            document.documentElement.style.cursor = '';
-            this.sidebar.style.cursor = 'default';
-            
             this.saveSidebarWidth();
-            
-            e.preventDefault();
-            e.stopPropagation();
-        };
-        
-        this.sidebar.addEventListener('mousedown', handleMouseDown);
+        });
     }
 
     updateMainContentMargin() {
@@ -555,6 +492,8 @@ class UserAppManager {
             // Use customTitle if set, else fallback to title
             const customTitle = app.customTitle && app.customTitle.trim() ? app.customTitle : '';
             let displayTitle = customTitle || app.title;
+            const safeTitle = this.escapeHtml(displayTitle);
+            const safeUrl = this.escapeHtml(app.url);
 
             // Determine button size based on compact mode
             const btnSize = this.settings.compactMode ? 16 : 32;
@@ -572,10 +511,10 @@ class UserAppManager {
                     </div>
                     <div class="app-status ${isActive ? '' : 'inactive'}">${isActive ? 'Active' : 'Inactive'}</div>
                 </div>
-                <div class="app-title" title="${displayTitle}">
-                    <span class="app-title-text">${displayTitle}</span>
+                <div class="app-title" title="${safeTitle}">
+                    <span class="app-title-text">${safeTitle}</span>
                 </div>
-                <div class="app-url">${app.url}</div>
+                <div class="app-url">${safeUrl}</div>
                 <div class="app-controls">
                     <button class="control-btn move-up" ${index === 0 ? 'disabled' : ''} style="width:${btnSize}px;height:${btnSize}px;">↑</button>
                     <button class="control-btn move-down" ${index === this.apps.length - 1 ? 'disabled' : ''} style="width:${btnSize}px;height:${btnSize}px;">↓</button>
@@ -678,45 +617,10 @@ class UserAppManager {
         });
     }
 
-    handleKeyboard(e) {
-        // Handle escape key to pin the app (like hammy-mining) and collapse sidebar
-        if (e.key === 'Escape') {
-            // Collapse sidebar when pinning
-            if (this.sidebar.classList.contains('open')) {
-                this.toggleSidebar();
-            }
-            window.parent.postMessage({type: "pin"}, "*");
-            return;
-        }
-        
-        // Only handle other keyboard shortcuts when sidebar is open
-        if (!this.sidebar.classList.contains('open')) return;
-        
-        switch(e.key) {
-            case 'Delete':
-                if (this.selectedAppIndices.length > 0) {
-                    this.deleteSelectedApp();
-                }
-                break;
-                
-            case 'ArrowUp':
-                e.preventDefault();
-                this.navigateSelection(-1, e.shiftKey);
-                break;
-                
-            case 'ArrowDown':
-                e.preventDefault();
-                this.navigateSelection(1, e.shiftKey);
-                break;
-                
-            case 'a':
-            case 'A':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    this.selectAllApps();
-                }
-                break;
-        }
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     isValidUrl(string) {
@@ -927,7 +831,12 @@ class UserAppManager {
 
                 if (importData.settings) {
                     this.settings = { ...this.settings, ...importData.settings };
-                    this.loadSettings(); // Apply and save the new settings
+                    this.saveSettings();
+                    this.fontSizeSelect.value = this.settings.fontSize;
+                    this.compactModeToggle.checked = this.settings.compactMode;
+                    this.disableAppsOnStartupToggle.checked = !!this.settings.disableAppsOnStartup;
+                    this.hideAppsOnStartupToggle.checked = !!this.settings.hideAppsOnStartup;
+                    this.applySettings();
                 }
                 this.renderAppList();
                 this.saveAppsToStorage();
@@ -948,7 +857,7 @@ class UserAppManager {
     }
 
     hideModal() {
-        this.appsModal.style.display = 'none';
+        this.appsModal.classList.add('hidden');
     }
 
     copyToClipboard() {

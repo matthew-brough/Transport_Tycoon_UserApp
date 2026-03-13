@@ -43,44 +43,33 @@ body {
     transform: translateX(0);
 }
 
-.sidebar.resizing {
-    transition: none;
-    user-select: none;
+/* Resize Handle */
+.resize-handle {
+    position: absolute;
+    left: -4px;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    cursor: ew-resize;
+    pointer-events: auto;
+    z-index: 1001;
 }
 
-/* Resize Handle */
-.sidebar::before {
+.resize-handle::after {
     content: '';
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 4px;
-    height: 100%;
-    background: transparent;
-    cursor: ew-resize;
-    z-index: 1001;
-    transition: background 0.2s ease;
-}
-
-.sidebar:hover::before,
-.sidebar.resizing::before {
-    background: rgba(52, 152, 219, 0.5);
-}
-
-.sidebar::after {
-    content: '⋮⋮';
-    position: absolute;
-    left: 1px;
+    left: 5px;
     top: 50%;
-    transform: translateY(-50%) rotate(90deg);
-    font-size: 8px;
-    color: rgba(255, 255, 255, 0.3);
-    pointer-events: none;
-    transition: color 0.2s ease;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 1px;
+    transition: background 0.2s;
 }
 
-.sidebar:hover::after {
-    color: rgba(52, 152, 219, 0.8);
+.resize-handle:hover::after {
+    background: rgba(52, 152, 219, 0.8);
 }
 
 /* Sidebar Toggle Button */
